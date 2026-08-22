@@ -14,7 +14,7 @@
 ## 安装
 
 ```bash
-git clone https://github.com/你的用户名/windows-emulator.git
+git clone https://github.com/xiaofangii2/windows-emulator.git
 cd windows-emulator
 chmod +x windows.sh
 ./windows.sh install
