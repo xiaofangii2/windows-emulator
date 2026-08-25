@@ -39,6 +39,11 @@ MSG_OOBE_DENIED="您拒绝了许可条款，OOBE 已取消。"
 MSG_OOBE_COMPLETE="OOBE 完成！"
 MSG_OOBE_ENTER="正在进入系统..."
 MSG_LOGIN_PASSWORD="请输入密码："
+MSG_ACTIVATION_PROMPT="请输入激活码（留空表示没有）："
+MSG_ACTIVATION_VERIFY="正在验证激活码..."
+MSG_ACTIVATION_SUCCESS="激活成功！"
+MSG_ACTIVATION_ERROR="激活码无效，请重新输入"
+MSG_ACTIVATION_SKIP="未输入激活码，跳过激活步骤"
 MSG_CMD_PROMPT="C:\\Users\\Administrator> "
 MSG_CMD_NOT_FOUND="不是内部或外部命令，也不是可运行的程序"
 MSG_CMD_UNKNOWN="或批处理文件。"
@@ -118,6 +123,11 @@ MSG_OOBE_DENIED="You declined the license terms. OOBE cancelled."
 MSG_OOBE_COMPLETE="OOBE complete!"
 MSG_OOBE_ENTER="Entering system..."
 MSG_LOGIN_PASSWORD="Enter password: "
+MSG_ACTIVATION_PROMPT="Enter activation key (leave blank to skip): "
+MSG_ACTIVATION_VERIFY="Verifying activation key..."
+MSG_ACTIVATION_SUCCESS="Activation successful!"
+MSG_ACTIVATION_ERROR="Invalid activation key, please try again"
+MSG_ACTIVATION_SKIP="No activation key entered, skipping activation"
 MSG_CMD_PROMPT="C:\\Users\\Administrator> "
 MSG_CMD_NOT_FOUND="is not recognized as an internal or external command"
 MSG_CMD_UNKNOWN="operable program or batch file."
@@ -197,6 +207,11 @@ MSG_OOBE_DENIED="您拒絕了授權條款，OOBE 已取消。"
 MSG_OOBE_COMPLETE="OOBE 完成！"
 MSG_OOBE_ENTER="正在進入系統..."
 MSG_LOGIN_PASSWORD="請輸入密碼："
+MSG_ACTIVATION_PROMPT="請輸入啟用碼（留空表示沒有）："
+MSG_ACTIVATION_VERIFY="正在驗證啟用碼..."
+MSG_ACTIVATION_SUCCESS="啟用成功！"
+MSG_ACTIVATION_ERROR="啟用碼無效，請重新輸入"
+MSG_ACTIVATION_SKIP="未輸入啟用碼，跳過啟用步驟"
 MSG_CMD_PROMPT="C:\\Users\\Administrator> "
 MSG_CMD_NOT_FOUND="不是內部或外部命令，也不是可執行的程式"
 MSG_CMD_UNKNOWN="或批次檔。"
@@ -276,6 +291,11 @@ MSG_OOBE_DENIED=""
 MSG_OOBE_COMPLETE=""
 MSG_OOBE_ENTER=""
 MSG_LOGIN_PASSWORD=""
+MSG_ACTIVATION_PROMPT=""
+MSG_ACTIVATION_VERIFY=""
+MSG_ACTIVATION_SUCCESS=""
+MSG_ACTIVATION_ERROR=""
+MSG_ACTIVATION_SKIP=""
 MSG_CMD_PROMPT=""
 MSG_CMD_NOT_FOUND=""
 MSG_CMD_UNKNOWN=""
@@ -453,18 +473,71 @@ case $1 in
             echo "$MSG_BLUE_DUMP"; echo "$MSG_BLUE_REPORT"; echo ""
             echo "$MSG_BLUE_SEARCH \"$MSG_BLUE_ERROR\""; exit 1
         }
+
+        # 创建日志文件
+        OOBE_LOG="$HOME_DIR/oobe_enter"
+        echo "OOBE 设置记录 - $(date)" > "$OOBE_LOG"
+        echo "-----------------------------" >> "$OOBE_LOG"
+
         echo ""; echo "$MSG_OOBE_TITLE"; echo ""
-        while true; do echo -n "$MSG_OOBE_REGION"; read region; [ -n "$region" ] && break; echo "$MSG_OOBE_EMPTY"; done
-        while true; do echo -n "$MSG_OOBE_KEYBOARD"; read keyboard; [ -n "$keyboard" ] && break; echo "$MSG_OOBE_EMPTY"; done
-        echo ""; echo -n "$MSG_OOBE_PASSWORD"; read -s password; echo ""
+        while true; do
+            echo -n "$MSG_OOBE_REGION"
+            read region
+            [ -n "$region" ] && break
+            echo "$MSG_OOBE_EMPTY"
+        done
+        echo "地区: $region" >> "$OOBE_LOG"
+
+        while true; do
+            echo -n "$MSG_OOBE_KEYBOARD"
+            read keyboard
+            [ -n "$keyboard" ] && break
+            echo "$MSG_OOBE_EMPTY"
+        done
+        echo "键盘布局: $keyboard" >> "$OOBE_LOG"
+
+        echo ""
+        activation_status="未输入"
+        while true; do
+            echo -n "$MSG_ACTIVATION_PROMPT"
+            read activation_key
+            if [ -z "$activation_key" ]; then
+                activation_status="未输入"
+                echo "$MSG_ACTIVATION_SKIP"
+                break
+            fi
+            echo "$MSG_ACTIVATION_VERIFY"
+            response=$(curl -s "http://css.xiaofangii.dpdns.org:8080/verify?key=$activation_key")
+            if echo "$response" | grep -q "true"; then
+                activation_status="有效"
+                echo "$MSG_ACTIVATION_SUCCESS"
+                break
+            else
+                activation_status="无效"
+                echo "$MSG_ACTIVATION_ERROR"
+                # 继续循环
+            fi
+        done
+        echo "激活码: $activation_status" >> "$OOBE_LOG"
+
+        echo ""
+        echo -n "$MSG_OOBE_PASSWORD"; read -s password; echo ""
         while [ -z "$password" ]; do echo "$MSG_OOBE_EMPTY"; echo -n "$MSG_OOBE_PASSWORD"; read -s password; echo ""; done
         echo -n "$password" | openssl dgst -sha256 | awk '{print $2}' > "$HOME_DIR/C:/Windows/System32/password.hash"
-        echo "$MSG_OOBE_AGREED"; echo ""; echo "$MSG_OOBE_LICENSE"; echo "$MSG_OOBE_TERMS"; echo "$MSG_OOBE_CONTINUE"; echo ""
+        pwd_len=$(echo -n "$password" | wc -c)
+        pwd_stars=$(printf "%${pwd_len}s" | tr " " "*")
+        echo "密码: $pwd_stars" >> "$OOBE_LOG"
+        echo "$MSG_OOBE_AGREED"; echo ""
+
+        echo "$MSG_OOBE_LICENSE"; echo "$MSG_OOBE_TERMS"; echo "$MSG_OOBE_CONTINUE"; echo ""
         while true; do echo -n "$MSG_OOBE_AGREE"; read agree; [ "$agree" = "y" ] && break; [ "$agree" = "n" ] && echo "" && echo "$MSG_OOBE_DENIED" && exit 0; echo "请输入 y 或 n"; done
+
         echo ""; echo "$MSG_OOBE_COMPLETE"; echo "$MSG_OOBE_ENTER"; sleep 2; echo ""
         echo "true" > "$HOME_DIR/oobe"
+
         echo "Microsoft Windows [版本 11.0.25276]"; echo "版权所有 (c) 2026 xiaofang。保留所有权利。"
         echo ""; echo "本项目不隶属于 Microsoft，不应与 Microsoft 产品混淆"; echo ""
+
         while true; do
             echo -n "$MSG_CMD_PROMPT"; read cmd
             [ "$cmd" = "exit" ] && echo "正在退出交互模式..." && break
