@@ -12,8 +12,8 @@ if ! grep -q 'export PATH=$PATH:$HOME/bin' ~/.bashrc 2>/dev/null; then
     echo "已添加 ~/bin 到 PATH"
 fi
 
-echo "正在从 GitHub 下载最新脚本..."
-if curl -L -o "$HOME/bin/windows" "https://raw.githubusercontent.com/xiaofangii2/windows-emulator/main/windows.sh" 2>/dev/null; then
+echo "正在从 GitHub 下载最新可执行文件..."
+if curl -L -o "$HOME/bin/windows" "https://raw.githubusercontent.com/xiaofangii2/windows-emulator/main/windows" 2>/dev/null; then
     chmod +x "$HOME/bin/windows"
     echo "下载完成！"
 else
